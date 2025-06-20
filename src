@@ -1,6 +1,5 @@
 #! /usr/bin/python
 
-# import the necessary packages
 from imutils.video import VideoStream
 from imutils.video import FPS
 import face_recognition
@@ -12,14 +11,15 @@ from picamera2 import Picamera2
 from gpiozero import Servo
 from time import sleep
 
+# Not rlly using servo pitch tho
 servoPitch = Servo(24)
 servoYaw = Servo(25)
-# Initialize 'currentname' to trigger only when a new person is identified.
 currentname = "unknown"
-# Determine faces from encodings.pickle file model created from train_model.py
+
+# Classify diff faces from encodings.pickle file created from train_model.py
 encodingsP = "encodings.pickle"
 
-# load the known faces and embeddings along with OpenCV's Haar
+# Load known faces and embeddings along with OpenCV's Haar
 # cascade for face detection
 print("[INFO] loading encodings + face detector...")
 data = pickle.loads(open(encodingsP, "rb").read())
@@ -28,16 +28,15 @@ data = pickle.loads(open(encodingsP, "rb").read())
 picam2 = Picamera2()
 picam2.configure(picam2.create_preview_configuration(main={"format": 'XRGB8888', "size": (640, 480)}))
 picam2.start()
-time.sleep(2.0)
+#time.sleep(2.0)
 
-# Start the FPS counter
+# Start FPS counter
 fps = FPS().start()
 
-# Servo control variables
-yaw_position = 1.0  # Start at one extreme
-increment = -0.05  # Small step to move the servo
+yaw_position = 1.0
+increment = -0.05  # Small increments so smoother movement, still has seizure tho
 
-# Function to update servo position
+# Update servo angle
 def update_servo_position():
     global yaw_position, increment
     if yaw_position <= -1.0 or yaw_position >= 1.0:
@@ -47,25 +46,25 @@ def update_servo_position():
     servoYaw.value = yaw_position
     sleep(0.1)
 
-# Loop until a face is detected
+# Loop until face detected
 face_detected = False
 while not face_detected:
     update_servo_position()
     
-    # Grab the frame from the camera
+    # Grab frame from camera
     frame = picam2.capture_array()
     frame = imutils.resize(frame, width=500)
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     
-    # Detect the face boxes
+    # Facial bounding boxes
     boxes = face_recognition.face_locations(frame)
     encodings = face_recognition.face_encodings(frame, boxes)
     names = []
 
-    # Loop over the facial embeddings
+    # Loop over facial encodings/detections
     for encoding in encodings:
         matches = face_recognition.compare_faces(data["encodings"], encoding)
-        name = "Unknown"  # If face is not recognized, then print Unknown
+        name = "Unknown"
 
         if True in matches:
             matchedIdxs = [i for (i, b) in enumerate(matches) if b]
@@ -85,17 +84,15 @@ while not face_detected:
 
     if names:  # If any name is detected
         face_detected = True
-        servoYaw.value = 0  # Stop the servo
+        servoYaw.value = 0  # Stop servo
 
-    # Display the frame
     cv2.imshow("Facial Recognition is Running", frame)
     key = cv2.waitKey(1) & 0xFF
 
-    # Quit when 'q' key is pressed
     if key == ord("q"):
         break
 
-# Main loop after a face is detected
+# Main loop
 while True:
     frame = picam2.capture_array()
     frame = imutils.resize(frame, width=500)
@@ -130,13 +127,13 @@ while True:
         cv2.putText(frame, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX, .8, (0, 255, 255), 2)
 
     if "Jonathan" in names:
-        print("Access granted!")
+        print("Access granted! :>")
 
     if "Mom" in names:
-        print("GO AWAY")
+        print("GO AWAY >:(")
 
     if "Finkelstein" in names:
-        print("YAY")
+        print("YAY :D")
 
     cv2.imshow("Facial Recognition is Running", frame)
     key = cv2.waitKey(1) & 0xFF
@@ -152,5 +149,3 @@ print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
 
 cv2.destroyAllWindows()
 picam2.stop()
-
-
